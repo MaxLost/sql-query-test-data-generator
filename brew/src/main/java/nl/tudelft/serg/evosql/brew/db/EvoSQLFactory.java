@@ -17,6 +17,8 @@ public class EvoSQLFactory {
                 connectionData.getDatabase(),
                 connectionData.getUsername(),
                 connectionData.getPassword(),
-                false);
+                false,
+                "Standard"
+            );
     }
 }

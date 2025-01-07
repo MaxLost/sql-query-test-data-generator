@@ -8,6 +8,7 @@ import java.util.*;
 import nl.tudelft.serg.evosql.db.ISchemaExtractor;
 import nl.tudelft.serg.evosql.fixture.Solution;
 import nl.tudelft.serg.evosql.fixture.TestCaseSolution;
+import nl.tudelft.serg.evosql.fixture.VectorisedFixture;
 import nl.tudelft.serg.evosql.metaheuristics.*;
 import nl.tudelft.serg.evosql.metaheuristics.operators.*;
 import org.apache.logging.log4j.LogManager;
@@ -34,6 +35,7 @@ public class EvoSQL {
 		long timePassed;
 		long timeBudget;
 		List<Fixture> population;
+		List<VectorisedFixture> vectorisedPopulation;
 		Set<ColumnSchema> usedColumns;
 		
 		PathState(int pathNo, String path, Approach approach, long timePassed, List<Fixture> population, long timeBudget) {
@@ -49,17 +51,18 @@ public class EvoSQL {
 	
 	private ISchemaExtractor schemaExtractor;
 	private PathExtractor pathExtractor;
-
 	private boolean baseline;
+	private String gaOption;
 	
-	public EvoSQL(String jdbcString, String dbDatabase, String dbUser, String dbPwd, boolean baseline) {
-		this(new SchemaExtractor(jdbcString, dbDatabase, dbUser, dbPwd), baseline);
+	public EvoSQL(String jdbcString, String dbDatabase, String dbUser, String dbPwd, boolean baseline, String gaOption) {
+		this(new SchemaExtractor(jdbcString, dbDatabase, dbUser, dbPwd), baseline, gaOption);
 	}
 
-	public EvoSQL(ISchemaExtractor se, boolean baseline) {
+	public EvoSQL(ISchemaExtractor se, boolean baseline, String gaOption) {
 		this.schemaExtractor = se;
 		pathExtractor = new PathExtractor(schemaExtractor);
 		this.baseline = baseline;
+		this.gaOption = gaOption;
 	}
 	public void replace(List<String> allPaths, String sqlToBeTested)
 	{
@@ -68,8 +71,8 @@ public class EvoSQL {
 		Map<String, String> nameList = new HashMap<>();
 		while (true)
 		{
-			preindex = sqlToBeTested.indexOf('"',nextindex + 1);
-			if (preindex == -1)
+			preindex = sqlToBeTested.indexOf('"',nextindex + 1) + 1;
+			if (preindex == 0)
 			{
 				break;
 			}
@@ -88,8 +91,8 @@ public class EvoSQL {
 			String path = allPaths.get(i);
 			while (true)
 			{
-				preindex = path.indexOf('"',nextindex + 1);
-				if (preindex == -1)
+				preindex = path.indexOf('"',nextindex + 1) + 1;
+				if (preindex == 0)
 				{
 					break;
 				}
@@ -99,7 +102,7 @@ public class EvoSQL {
 					break;
 				}
 				String name = path.substring(preindex, nextindex);
-				path = path.replaceFirst(name, nameList.get(name));
+				path = path.replaceFirst(name, nameList.get(name.toUpperCase()));
 			}
 			path = path.replaceAll("%%", "%");
 			allPaths.set(i, path);
@@ -231,6 +234,7 @@ public class EvoSQL {
 		}
 
 		List<Fixture> population = new ArrayList<Fixture>();
+		List<VectorisedFixture> vectorisedPopulation = new ArrayList<>();
 
 		// Holds all paths not yet solved and not tried in the current cycle
 		Queue<PathState> unattemptedPaths = new LinkedList<PathState>();
@@ -269,20 +273,31 @@ public class EvoSQL {
 					if (EvoSQLConfiguration.USE_LITERAL_SEEDING || (baseline && EvoSQLConfiguration.USE_SEEDED_RANDOM_BASELINE)) {
 						// Get the seeds for the current path
 						seeds = new SeedExtractor(pathSql).extract();
+						if (EvoSQLConfiguration.EXPAND_LITERAL_SEEDING) {
+							seeds.expand(87, 5);
+						}
 					} else {
 						// Use no seeds
 						seeds = Seeds.emptySeed();
 					}
 					if (baseline)
 						pathState.approach = new RandomApproach(tableSchemas, pathSql, seeds);
-					else
+					else if (this.gaOption.equals("Standard"))
 						pathState.approach = new StandardGA(population, tableSchemas, pathSql, seeds);
+					else if (this.gaOption.equals("DE"))
+						pathState.approach = new DifferentialEvolutionGA(population, tableSchemas, pathSql, seeds);
+					else if (this.gaOption.equals("SOMA"))
+						pathState.approach = new SOMA(vectorisedPopulation, tableSchemas, pathSql, seeds);
 				} else {
 					// Find table schemas from approach
 					tableSchemas = pathState.approach.getTableSchemas();
 
 					// Set the current population to where it left off
-					population = pathState.population;
+					if (this.gaOption.equals("SOMA")) {
+						vectorisedPopulation = pathState.vectorisedPopulation;
+					} else {
+						population = pathState.population;
+					}
 				}
 
 
@@ -366,8 +381,13 @@ public class EvoSQL {
 				} else {
 					// Check if it didn't think it was a solution (because then there is no point to keep trying
 					if (generatedFixture.getFitness() != null && generatedFixture.getFitness().getDistance() != 0) {
+						// new list pointing to the last population
+						if (this.gaOption.equals("SOMA")) {
+							pathState.vectorisedPopulation = new ArrayList<>(vectorisedPopulation);
+						} else {
+							pathState.population = new ArrayList<>(population);
+						}
 						// Add this path to the attemptedPaths
-						pathState.population = new ArrayList<Fixture>(population); // new list pointing to the last population
 						attemptedPaths.add(pathState);
 					}
 
@@ -411,15 +431,17 @@ public class EvoSQL {
 			pathState.timeBudget -= timediff;
 
 			// If all paths are done, there are unsolved paths and we have time left, add the unsolved paths back in
-			if (unattemptedPaths.size() == 0 && !attemptedPaths.isEmpty()) {
+			if (unattemptedPaths.isEmpty() && !attemptedPaths.isEmpty()) {
 				// Check if any attempted paths have time left, if not stop
 				boolean timeLeft = false;
 				for (PathState ps : attemptedPaths) {
-					if (ps.timeBudget > 0)
+					if (ps.timeBudget > 0) {
 						timeLeft = true;
+						// ps.timeBudget = ps.timeBudget * 3 / 4;
+					}
 				}
 
-				if (timeLeft)
+				if (timeLeft && attemptedPaths.size() > 5)
 					unattemptedPaths.addAll(attemptedPaths);
 				attemptedPaths.clear();
 			}

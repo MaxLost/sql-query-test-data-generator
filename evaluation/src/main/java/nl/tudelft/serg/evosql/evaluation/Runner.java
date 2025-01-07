@@ -17,6 +17,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
@@ -30,7 +31,7 @@ public class Runner {
 
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		
-		System.out.println("Evaluation for ICSE 2018");
+		// System.out.println("Evaluation for ICSE 2018");
 		
 		// Set the project to evaluate. That's the only config you need.
 		String projectName, algorithm;
@@ -39,12 +40,13 @@ public class Runner {
 			algorithm = args[1];
 		} else {
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-			System.out.print("Which project do you wish to evaluate?(erpnext/espocrm/suitecrm): ");
+			//System.out.print("Which project do you wish to evaluate?(erpnext/espocrm/suitecrm): ");
 //			projectName = "erpnext";
-//			projectName = "espocrm";
+			projectName = "espocrm";
 //			projectName = "suitecrm";
-			projectName = br.readLine().trim();
-			System.out.print("Which algorithm (evosql/baseline/both/moesql): ");
+//			projectName = br.readLine().trim();
+//			System.out.print("Which algorithm (evosql/baseline/both/moesql): ");
+			System.out.print("Which algorithm you want to use (dsoma/evosql): ");
 //			algorithm = "evosql";
 //			algorithm = "moesql";
 			algorithm = br.readLine().trim();
@@ -122,7 +124,11 @@ public class Runner {
 
 
 //		eval.perform(1016, 19);
-		eval.perform();
+		if (algorithm.equals("dsoma")) {
+			eval.perform("dsoma");
+		} else {
+			eval.perform();
+		}
 
 		coverageOutput.close();
 		output.close();

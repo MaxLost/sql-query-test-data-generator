@@ -1,10 +1,8 @@
 package nl.tudelft.serg.evosql.metaheuristics.operators;
 
-import com.sun.xml.internal.ws.policy.spi.PolicyAssertionValidator;
-import nl.tudelft.serg.evosql.fixture.Solution;
-
 import java.io.Serializable;
 import java.util.Comparator;
+import nl.tudelft.serg.evosql.fixture.Solution;
 
 public class ObjectiveComparator<S extends Solution<?>> implements Comparator<S>, Serializable {
     public enum Ordering {ASCENDING, DESCENDING} ;

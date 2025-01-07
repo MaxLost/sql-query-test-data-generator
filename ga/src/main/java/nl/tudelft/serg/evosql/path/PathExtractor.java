@@ -8,7 +8,7 @@ import java.util.List;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import in2test.application.services.SQLMutationWSFacade;
+import in2test.application.services.SqlMutationServiceFacade;
 import nl.tudelft.serg.evosql.db.ISchemaExtractor;
 import nl.tudelft.serg.evosql.db.TableXMLFormatter;
 import org.apache.logging.log4j.LogManager;
@@ -19,7 +19,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import in2test.application.common.SQLToolsConfig;
-import in2test.application.services.SQLFpcWSFacade;
+import in2test.application.services.SqlFpcServiceFacade;
 import nl.tudelft.serg.evosql.EvoSQLException;
 import nl.tudelft.serg.evosql.sql.parser.SqlSecurer;
 
@@ -52,8 +52,8 @@ public class PathExtractor {
 			throw new Exception("Failed to extract the schema from the running database.", e);
 		}
 		String sqlfpcXml ="";
-		SQLFpcWSFacade wsFpc=new SQLFpcWSFacade();
-		sqlfpcXml=wsFpc.getRules(query, schemaXml, "");
+		SqlFpcServiceFacade wsFpc=new SqlFpcServiceFacade();
+		sqlfpcXml=wsFpc.getRulesXml(query, schemaXml, "");
 
 //		SQLMutationWSFacade wsMut = new SQLMutationWSFacade();
 //		sqlfpcXml = wsMut.getMutants(query, schemaXml, "");

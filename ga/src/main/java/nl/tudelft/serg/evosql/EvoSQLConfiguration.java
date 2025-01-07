@@ -73,7 +73,8 @@ public class EvoSQLConfiguration {
 	
 	/** Feature config **/
 	public static boolean USE_LITERAL_SEEDING = true;
-	public static boolean USE_DYNAMIC_JOIN_SEEDING = true;
+	public static boolean EXPAND_LITERAL_SEEDING = false;
+	public static boolean USE_DYNAMIC_JOIN_SEEDING = false;
 	public static boolean USE_USED_COLUMN_EXTRACTION = true;
 	
 	public static boolean MUTATION_PROBABILITY_FOR_EACH_ROW = false;
@@ -81,10 +82,15 @@ public class EvoSQLConfiguration {
 	public static boolean USE_SEEDED_RANDOM_BASELINE = true;
 	
 	/** Evaluation time **/
-	public static long MS_EXECUTION_TIME = 1800000; // 3min = 180000 ms
+	public static long MS_EXECUTION_TIME = 200_000;
+	public static long MS_MAX_PATH_EXECUTION_TIME = 64_000;
+	//public static long MS_EXECUTION_TIME = 300_000;
+	//public static long MS_EXECUTION_TIME = 180000; // 3min = 180000 ms
 	//public static long MS_EXECUTION_TIME = 1800000; // Half an hour = 1800000 ms
 	
 	/** Testing, should this be moved to special testing classes? **/
 	public static int TEST_MAX_ITERATIONS = 5;
+
+	public static boolean SHOW_BEST_RESULT = true;
 
 }

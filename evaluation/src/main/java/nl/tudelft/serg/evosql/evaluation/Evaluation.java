@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import nl.tudelft.serg.evosql.*;
+import nl.tudelft.serg.evosql.fixture.Solution;
 import nl.tudelft.serg.evosql.fixture.TestCaseSolution;
 import nl.tudelft.serg.evosql.sql.TableSchema;
 import org.apache.logging.log4j.LogManager;
@@ -91,14 +92,18 @@ public class Evaluation {
 
 
 	public void perform() {
-		perform(true, 0,0);
+		perform(true, 0,0, "");
+	}
+
+	public void perform(String algorithm) {
+		perform(true, 0,0, algorithm);
 	}
 	
 	public void perform(int queryNo, int pathNo) {
-		perform(false, queryNo, pathNo);
+		perform(false, queryNo, pathNo, "");
 	}
 
-	private void perform(boolean everything, int queryNo, int pathNo) {
+	private void perform(boolean everything, int queryNo, int pathNo, String algorithm) {
 		List<String> paths;
 		try {
 			if(!schemaIsMocked()) resetDB();
@@ -127,9 +132,13 @@ public class Evaluation {
 				//if (internalQueryNo != 2) //and
 				//if (internalQueryNo != 1587) //join
 				//if (internalQueryNo != 1269) //having
-				if (internalQueryNo != 38) //motca
-				{
-					//System.out.println(scenarioQuery.getQuery());
+//				if (internalQueryNo != 38) //motca
+//				{
+//					//System.out.println(scenarioQuery.getQuery());
+//					internalQueryNo++;
+//					continue;
+//				}
+				if (internalQueryNo > 10) {
 					internalQueryNo++;
 					continue;
 				}
@@ -167,20 +176,21 @@ public class Evaluation {
 					paths = null;
 				}
 				//paths = null;
-				if (inclBaseline) {
-					log.info("executing baseline");
-					execute(scenarioQueryNo, internalQueryNo, query, true, paths);
-				}
+//				if (inclBaseline) {
+//					log.info("executing baseline");
+//					execute(scenarioQueryNo, internalQueryNo, query, true, paths);
+//				}
 
 				if (inclEvosql) {
+					String gaOption = algorithm.equals("dsoma") ? "SOMA" : "Standard";
 					log.info("executing evosql");
-					execute(scenarioQueryNo, internalQueryNo, query, false, paths);
+					execute(scenarioQueryNo, internalQueryNo, query, false, paths, gaOption);
 				}
 
-				if (!(inclBaseline&&inclEvosql))
+				if (!(inclBaseline || inclEvosql))
 				{
 					log.info("executing moesql");
-					execute(scenarioQueryNo, internalQueryNo, query, false, paths);
+					execute(scenarioQueryNo, internalQueryNo, query, false, paths, "moesql");
 				}
 			}
 
@@ -198,9 +208,9 @@ public class Evaluation {
 		return schemas != null;
 	}
 
-	private void execute(int scenarioQueryNo, int internalQueryNo, String query, boolean baseline, List<String> paths) throws SQLException, IOException {
+	private void execute(int scenarioQueryNo, int internalQueryNo, String query, boolean baseline, List<String> paths, String gaOption) throws SQLException, IOException {
 		long start = System.currentTimeMillis();
-		Result result = exerciseQuery(query, baseline, paths);
+		Result result = exerciseQuery(query, baseline, paths, gaOption);
 		long end = System.currentTimeMillis();
 		
 		// Print test data output
@@ -210,6 +220,12 @@ public class Evaluation {
 		
 
 		if (result != null) {
+
+//			MultiResult<Solution<?>> x = (MultiResult<Solution<?>>) result;
+//			for (Solution<?> solution : x.solutions) {
+//				testDataOutput.println(solution.getVariables());
+//			}
+
 			if (EvoSQLConfiguration.algorithmType == EvoSQLConfiguration.AlgorithmType.EvoSQL)
 			{
 				long successes = result.qtyOfSuccesses();
@@ -226,20 +242,40 @@ public class Evaluation {
 					// Store the generated test data as text if success
 					if (pr.isSuccess()) {
 						String data = pr.getFixture().prettyPrint();
-						testDataOutput.print("------------\nCoverage Target " + pr.getPathNo() + "\n"
-								+ getBeautifulSql(pr.getPathSql())
-								+ "\n\n"
-								+ data
-								+ "\n\n");
+//						testDataOutput.print("------------\nCoverage Target " + pr.getPathNo() + "\n"
+//								+ getBeautifulSql(pr.getPathSql())
+//								+ "\n\n"
+//								+ data
+//								+ "\n\n");
+						testDataOutput.print(data + "\n");
 					}
 				}
 				List<Double> covPerc = result.getCoveragePercentages();
 				List<Long> covTimes = result.getCoverageTimes();
-				for (int i = 0; i < covPerc.size(); i++) {
+
+				if (EvoSQLConfiguration.SHOW_BEST_RESULT) {
+
+					double maxPercent = covPerc.stream().max(Double::compare).get();
+					long maxTimes = covTimes.get(covPerc.indexOf(maxPercent));
+
+					for (int i = 0; i < covPerc.size(); i++) {
+						if (covPerc.get(i) > maxPercent) {
+							maxPercent = covPerc.get(i);
+							maxTimes = covTimes.get(i);
+						}
+					}
 					coverageOutput.println(scenarioQueryNo + "\t" + (baseline?"baseline":"evosql") + "\t"
-							+ String.format("%.2f", covPerc.get(i)) + "\t"
-							+ covTimes.get(i)
+						+ String.format("%.2f", maxPercent) + "\t"
+						+ maxTimes
 					);
+				} else {
+					for (int i = 0; i < covPerc.size(); i++) {
+						coverageOutput.println(
+							scenarioQueryNo + "\t" + (baseline ? "baseline" : "evosql") + "\t"
+								+ String.format("%.2f", covPerc.get(i)) + "\t"
+								+ covTimes.get(i)
+						);
+					}
 				}
 			}
 			else
@@ -331,12 +367,15 @@ public class Evaluation {
 		conn.createStatement().execute("DROP DATABASE IF EXISTS " + this.database);
 		conn.close();
 	}
-	private Result exerciseQuery(String query, boolean baseline, List<String> paths) {
+	private Result exerciseQuery(String query, boolean baseline, List<String> paths, String gaOption) {
 		try {
 			EvoSQL evoSQL;
 
-			if(!schemaIsMocked()) evoSQL = new EvoSQL(connectionString, database, user, pwd, baseline);
-			else evoSQL = new EvoSQL(new MockedSchemaExtractor(schemas), baseline);
+			// TODO: FOR TEST PURPOSES
+			//String gaOption = "SOMA";
+
+			if(!schemaIsMocked()) evoSQL = new EvoSQL(connectionString, database, user, pwd, baseline, gaOption);
+			else evoSQL = new EvoSQL(new MockedSchemaExtractor(schemas), baseline, gaOption);
 
 			if (paths != null) {
 				// Mock path extractor

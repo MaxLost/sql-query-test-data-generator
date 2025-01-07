@@ -3,7 +3,7 @@ package nl.tudelft.serg.evosql.evaluation.tools;
 import java.util.ArrayList;
 import java.util.List;
 
-import in2test.application.services.SQLFpcWSFacade;
+import in2test.application.services.SqlFpcServiceFacade;
 import nl.tudelft.serg.evosql.EvoSQLException;
 import nl.tudelft.serg.evosql.db.SchemaExtractor;
 import nl.tudelft.serg.evosql.path.PathExtractor;
@@ -33,11 +33,11 @@ public class AluraPathExtractor extends PathExtractor {
 			throw new Exception("Failed to extract the schema from the running database.", e);
 		}
 		String sqlfpcXml ="";
-		SQLFpcWSFacade wsFpc=new SQLFpcWSFacade();
+		SqlFpcServiceFacade wsFpc=new SqlFpcServiceFacade();
 		
 		String encryptedQuery = crypto.encryptSQLSelect(query);
 		
-		sqlfpcXml=wsFpc.getRules(encryptedQuery, encryptedSchemaXml, ""); 
+		sqlfpcXml=wsFpc.getRulesXml(encryptedQuery, encryptedSchemaXml, "");
 		
 		extractPaths(sqlfpcXml, encryptedPaths);
 		

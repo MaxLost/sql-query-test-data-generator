@@ -11,11 +11,11 @@ public class FixtureTable {
 
 	private TableSchema tableSchema;
 	
-	private List<FixtureRow> rows;
+	private ArrayList<FixtureRow> rows;
 	
 	public FixtureTable(TableSchema tableSchema, List<FixtureRow> rows) {
 		this.tableSchema = tableSchema;
-		this.rows = rows;
+		this.rows = (ArrayList<FixtureRow>) rows;
 	}
 	
 	public List<FixtureRow> getRows() {

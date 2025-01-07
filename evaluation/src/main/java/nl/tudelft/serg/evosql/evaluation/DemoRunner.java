@@ -2,7 +2,7 @@ package nl.tudelft.serg.evosql.evaluation;
 
 import com.mysql.cj.core.util.StringUtils;
 import in2test.application.common.SQLToolsConfig;
-import in2test.application.services.SQLMutationWSFacade;
+import in2test.application.services.SqlMutationServiceFacade;
 import nl.tudelft.serg.evosql.EvoSQLException;
 import nl.tudelft.serg.evosql.db.ISchemaExtractor;
 import nl.tudelft.serg.evosql.db.TableXMLFormatter;
